@@ -29,7 +29,6 @@ class InvitationNotification extends Notification implements ShouldBeEncrypted, 
     public function __construct(Invitation $invitation, public readonly string $token)
     {
         $this->organizationName = $invitation->organization()->value('name');
-        $this->afterCommit();
     }
 
     public function via(object $notifiable): array

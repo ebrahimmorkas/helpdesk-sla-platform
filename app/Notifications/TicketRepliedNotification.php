@@ -22,10 +22,7 @@ class TicketRepliedNotification extends Notification implements ShouldQueue
 
     public array $backoff = [30, 120, 600];
 
-    public function __construct(public readonly Ticket $ticket, public readonly TicketMessage $message)
-    {
-        $this->afterCommit();
-    }
+    public function __construct(public readonly Ticket $ticket, public readonly TicketMessage $message) {}
 
     public function via(object $notifiable): array
     {

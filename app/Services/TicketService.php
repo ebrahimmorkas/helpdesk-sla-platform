@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Notifications\TicketAssignedNotification;
 use App\Notifications\TicketRepliedNotification;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -138,7 +139,7 @@ class TicketService
                 $this->record($ticket, $actor, ActivityType::Assigned, ['assignee_id' => $ticket->assignee_id]);
 
                 if ($ticket->assignee_id !== null && $ticket->assignee_id !== $actor->id) {
-                    $ticket->assignee->notify(new TicketAssignedNotification($ticket));
+                    $this->notifyAfterCommit($ticket->assignee, new TicketAssignedNotification($ticket));
                 }
             }
 
@@ -211,7 +212,19 @@ class TicketService
         $recipient = $author->isStaff() ? $ticket->requester : $ticket->assignee;
 
         if ($recipient !== null && $recipient->isNot($author) && $recipient->is_active) {
-            $recipient->notify(new TicketRepliedNotification($ticket, $message));
+            $this->notifyAfterCommit($recipient, new TicketRepliedNotification($ticket, $message));
         }
+    }
+
+    /**
+     * Queue the notification only once the transaction has committed, so a
+     * rollback sends nothing. This uses DB::afterCommit rather than the
+     * notification's own afterCommit(): with the latter, the Redis queue defers
+     * its push to commit time, outside the failover queue's error handling, so a
+     * Redis outage failed the request after the data had already been saved.
+     */
+    private function notifyAfterCommit(User $recipient, Notification $notification): void
+    {
+        DB::afterCommit(fn () => $recipient->notify($notification));
     }
 }
