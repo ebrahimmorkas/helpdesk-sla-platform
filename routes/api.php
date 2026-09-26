@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\AttachmentController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\InvitationController;
 use App\Http\Controllers\Api\V1\SlaSettingsController;
@@ -38,5 +39,6 @@ Route::prefix('v1')->name('v1.')->group(function () {
         Route::patch('tickets/{ticket}', [TicketController::class, 'update'])->name('tickets.update');
         Route::get('tickets/{ticket}/activity', [TicketController::class, 'activity'])->name('tickets.activity');
         Route::post('tickets/{ticket}/messages', [TicketMessageController::class, 'store'])->name('tickets.messages.store');
+        Route::get('attachments/{attachment}', [AttachmentController::class, 'download'])->name('attachments.download');
     });
 });

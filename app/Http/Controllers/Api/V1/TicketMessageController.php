@@ -14,6 +14,8 @@ use Illuminate\Validation\Rule;
 
 class TicketMessageController extends Controller
 {
+    private const ALLOWED_EXTENSIONS = ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'txt', 'csv', 'log', 'zip', 'docx', 'xlsx'];
+
     public function store(Request $request, Ticket $ticket, TicketService $tickets): JsonResponse
     {
         Gate::authorize('reply', $ticket);
@@ -25,6 +27,10 @@ class TicketMessageController extends Controller
             'status' => $staff
                 ? ['sometimes', Rule::enum(TicketStatus::class)->only([TicketStatus::Open, TicketStatus::Pending, TicketStatus::Resolved])]
                 : ['prohibited'],
+            // "mimes" checks the detected content type, not just the extension.
+            // HTML, SVG and scripts are not accepted.
+            'attachments' => ['sometimes', 'array', 'max:5'],
+            'attachments.*' => ['file', 'max:10240', 'mimes:'.implode(',', self::ALLOWED_EXTENSIONS)],
         ]);
 
         $message = $tickets->reply(
@@ -33,8 +39,11 @@ class TicketMessageController extends Controller
             $data['body'],
             (bool) ($data['is_internal'] ?? false),
             isset($data['status']) ? TicketStatus::from($data['status']) : null,
+            $request->file('attachments', []),
         );
 
-        return (new TicketMessageResource($message->load('author:id,name,role')))->response()->setStatusCode(201);
+        return (new TicketMessageResource($message->load(['author:id,name,role', 'attachments'])))
+            ->response()
+            ->setStatusCode(201);
     }
 }

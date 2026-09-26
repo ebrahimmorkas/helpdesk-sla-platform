@@ -12,11 +12,16 @@ use App\Models\TicketMessage;
 use App\Models\User;
 use App\Notifications\TicketAssignedNotification;
 use App\Notifications\TicketRepliedNotification;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Throwable;
 
 class TicketService
 {
-    public function __construct(private readonly SlaClock $clock) {}
+    public function __construct(
+        private readonly SlaClock $clock,
+        private readonly AttachmentStore $attachments,
+    ) {}
 
     /**
      * @param  array{subject: string, description: string, priority?: string|null, requester_id?: int|null}  $data
@@ -52,32 +57,59 @@ class TicketService
      *    puts the ticket in "pending" (waiting on the customer);
      *  - a customer's reply to a pending or resolved ticket reopens it;
      *  - internal notes never change status or SLA.
+     *
+     * @param  list<UploadedFile>  $files
      */
-    public function reply(Ticket $ticket, User $author, string $body, bool $internal = false, ?TicketStatus $status = null): TicketMessage
+    public function reply(
+        Ticket $ticket,
+        User $author,
+        string $body,
+        bool $internal = false,
+        ?TicketStatus $status = null,
+        array $files = [],
+    ): TicketMessage {
+        $written = [];
+
+        try {
+            return DB::transaction(function () use ($ticket, $author, $body, $internal, $status, $files, &$written) {
+                return $this->addMessage($ticket, $author, $body, $internal, $status, $files, $written);
+            });
+        } catch (Throwable $e) {
+            $this->attachments->delete($written);
+
+            throw $e;
+        }
+    }
+
+    /**
+     * @param  list<UploadedFile>  $files
+     * @param  list<string>  $written
+     */
+    private function addMessage(Ticket $ticket, User $author, string $body, bool $internal, ?TicketStatus $status, array $files, array &$written): TicketMessage
     {
-        return DB::transaction(function () use ($ticket, $author, $body, $internal, $status) {
-            $ticket = $this->lock($ticket);
+        $ticket = $this->lock($ticket);
 
-            $message = $ticket->messages()->create([
-                'author_id' => $author->id,
-                'body' => $body,
-                'is_internal' => $author->isStaff() && $internal,
-            ]);
+        $message = $ticket->messages()->create([
+            'author_id' => $author->id,
+            'body' => $body,
+            'is_internal' => $author->isStaff() && $internal,
+        ]);
 
-            if (! $message->is_internal) {
-                if ($author->isStaff()) {
-                    $ticket->first_responded_at ??= now();
-                    $this->transition($ticket, $status ?? TicketStatus::Pending, $author);
-                } elseif (in_array($ticket->status, [TicketStatus::Pending, TicketStatus::Resolved], true)) {
-                    $this->transition($ticket, TicketStatus::Open, $author);
-                }
+        $this->attachments->attach($message, $files, $written);
 
-                $ticket->save();
-                $this->notifyOtherParty($ticket, $message, $author);
+        if (! $message->is_internal) {
+            if ($author->isStaff()) {
+                $ticket->first_responded_at ??= now();
+                $this->transition($ticket, $status ?? TicketStatus::Pending, $author);
+            } elseif (in_array($ticket->status, [TicketStatus::Pending, TicketStatus::Resolved], true)) {
+                $this->transition($ticket, TicketStatus::Open, $author);
             }
 
-            return $message;
-        });
+            $ticket->save();
+            $this->notifyOtherParty($ticket, $message, $author);
+        }
+
+        return $message;
     }
 
     /**
