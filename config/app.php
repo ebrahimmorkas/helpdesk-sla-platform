@@ -15,6 +15,9 @@ return [
 
     'name' => env('APP_NAME', 'Laravel'),
 
+    // Password for accounts created by DemoDataSeeder (local environments only).
+    'demo_user_password' => env('DEMO_USER_PASSWORD'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Environment
