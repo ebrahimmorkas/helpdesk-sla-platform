@@ -3,6 +3,8 @@
 use App\Http\Controllers\Api\V1\AttachmentController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\InvitationController;
+use App\Http\Controllers\Api\V1\NotificationController;
+use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\SlaSettingsController;
 use App\Http\Controllers\Api\V1\TicketController;
 use App\Http\Controllers\Api\V1\TicketMessageController;
@@ -40,5 +42,11 @@ Route::prefix('v1')->name('v1.')->group(function () {
         Route::get('tickets/{ticket}/activity', [TicketController::class, 'activity'])->name('tickets.activity');
         Route::post('tickets/{ticket}/messages', [TicketMessageController::class, 'store'])->name('tickets.messages.store');
         Route::get('attachments/{attachment}', [AttachmentController::class, 'download'])->name('attachments.download');
+
+        Route::get('reports/sla-compliance', [ReportController::class, 'slaCompliance'])->name('reports.sla-compliance');
+        Route::get('reports/workload', [ReportController::class, 'workload'])->name('reports.workload');
+
+        Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
+        Route::post('notifications/{id}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
     });
 });
