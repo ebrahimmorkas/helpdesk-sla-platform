@@ -32,6 +32,7 @@ class TicketController extends Controller
             'priority' => ['nullable', Rule::enum(TicketPriority::class)],
             'assignee' => ['nullable', 'string', 'regex:/^(me|none|\d+)$/'],
             'requester_id' => ['nullable', 'integer'],
+            'q' => ['nullable', 'string', 'min:3', 'max:200'],
         ]);
 
         $sorts = ['created_at', 'updated_at', 'resolution_due_at', 'first_response_due_at', 'number'];
@@ -40,6 +41,9 @@ class TicketController extends Controller
         $tickets = Ticket::query()
             ->visibleTo($user)
             ->with(self::LIST_RELATIONS)
+            // FULLTEXT index on (subject, description), natural language mode so
+            // user input is never interpreted as boolean search operators.
+            ->when($request->query('q'), fn ($q, $term) => $q->whereFullText(['subject', 'description'], $term))
             ->when($request->query('status'), fn ($q, $statuses) => $q->whereIn('status', $statuses))
             ->when($request->query('priority'), fn ($q, $priority) => $q->where('priority', $priority))
             ->when($user->isStaff() && $request->query('requester_id'), fn ($q) => $q->where('requester_id', $request->integer('requester_id')))
