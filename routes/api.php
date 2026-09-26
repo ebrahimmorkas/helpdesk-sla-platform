@@ -3,6 +3,8 @@
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\InvitationController;
 use App\Http\Controllers\Api\V1\SlaSettingsController;
+use App\Http\Controllers\Api\V1\TicketController;
+use App\Http\Controllers\Api\V1\TicketMessageController;
 use App\Http\Controllers\Api\V1\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -29,5 +31,12 @@ Route::prefix('v1')->name('v1.')->group(function () {
         Route::put('sla-policies/{priority}', [SlaSettingsController::class, 'updatePolicy'])->name('sla-policies.update');
         Route::get('business-hours', [SlaSettingsController::class, 'businessHours'])->name('business-hours.show');
         Route::put('business-hours', [SlaSettingsController::class, 'updateBusinessHours'])->name('business-hours.update');
+
+        Route::get('tickets', [TicketController::class, 'index'])->name('tickets.index');
+        Route::post('tickets', [TicketController::class, 'store'])->name('tickets.store');
+        Route::get('tickets/{ticket}', [TicketController::class, 'show'])->name('tickets.show');
+        Route::patch('tickets/{ticket}', [TicketController::class, 'update'])->name('tickets.update');
+        Route::get('tickets/{ticket}/activity', [TicketController::class, 'activity'])->name('tickets.activity');
+        Route::post('tickets/{ticket}/messages', [TicketMessageController::class, 'store'])->name('tickets.messages.store');
     });
 });
