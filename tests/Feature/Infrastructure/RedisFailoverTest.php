@@ -2,6 +2,10 @@
 
 namespace Tests\Feature\Infrastructure;
 
+use App\Enums\Role;
+use App\Services\OrganizationRegistrar;
+use App\Services\TicketService;
+use App\Tenancy\CurrentOrganization;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -37,6 +41,32 @@ class RedisFailoverTest extends TestCase
         dispatch(fn () => null);
 
         $this->assertSame(1, DB::table('jobs')->count());
+    }
+
+    /**
+     * Regression: notifications marked afterCommit() were handed to the Redis
+     * queue, which deferred the real push until commit, outside the failover
+     * driver's error handling. The request failed after the data was saved.
+     */
+    public function test_notifications_sent_from_a_transaction_fall_back_to_the_database_queue(): void
+    {
+        config(['queue.default' => 'failover']);
+        $admin = app(OrganizationRegistrar::class)->register([
+            'organization_name' => 'Acme', 'timezone' => 'UTC', 'name' => 'Ada',
+            'email' => 'ada@acme.test', 'password' => 'correct-horse-42',
+        ]);
+        $agent = $this->member($admin->organization);
+        app(CurrentOrganization::class)->set($admin->organization);
+        $ticket = app(TicketService::class)->open([
+            'subject' => 'Help', 'description' => 'Details',
+            'requester_id' => $this->member($admin->organization, Role::Customer)->id,
+        ], $admin);
+
+        app(TicketService::class)->update($ticket, ['assignee_id' => $agent->id], $admin);
+
+        // One queued job per notification channel (mail and database).
+        $this->assertSame(2, DB::table('jobs')->count());
+        $this->assertSame($agent->id, $ticket->fresh()->assignee_id);
     }
 
     public function test_cache_and_locks_fall_back_to_the_database_store(): void

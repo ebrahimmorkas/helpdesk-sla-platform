@@ -16,10 +16,7 @@ class TicketAssignedNotification extends Notification implements ShouldQueue
 
     public array $backoff = [30, 120, 600];
 
-    public function __construct(public readonly Ticket $ticket)
-    {
-        $this->afterCommit();
-    }
+    public function __construct(public readonly Ticket $ticket) {}
 
     public function via(object $notifiable): array
     {
