@@ -20,6 +20,13 @@ class TicketMessageResource extends JsonResource
                 'name' => $this->author->name,
                 'is_staff' => $this->author->isStaff(),
             ]),
+            'attachments' => $this->whenLoaded('attachments', fn () => $this->attachments->map(fn ($attachment) => [
+                'id' => $attachment->id,
+                'name' => $attachment->original_name,
+                'mime_type' => $attachment->mime_type,
+                'size' => $attachment->size,
+                'download_url' => route('v1.attachments.download', $attachment),
+            ])),
             'created_at' => $this->created_at?->toIso8601String(),
         ];
     }

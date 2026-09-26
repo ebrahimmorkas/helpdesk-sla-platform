@@ -69,7 +69,7 @@ class TicketController extends Controller
 
         return new TicketResource($ticket->load([
             ...self::LIST_RELATIONS,
-            'messages' => fn ($q) => $q->visibleTo($request->user())->with('author:id,name,role')->orderBy('id'),
+            'messages' => fn ($q) => $q->visibleTo($request->user())->with(['author:id,name,role', 'attachments'])->orderBy('id'),
         ]));
     }
 
