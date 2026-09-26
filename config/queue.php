@@ -81,11 +81,14 @@ return [
             'driver' => 'background',
         ],
 
+        // Jobs go to Redis; if Redis cannot accept them they are written to the
+        // database "jobs" table instead, which a second worker processes. This
+        // keeps requests that dispatch jobs working during a Redis outage.
         'failover' => [
             'driver' => 'failover',
             'connections' => [
+                'redis',
                 'database',
-                'deferred',
             ],
         ],
 

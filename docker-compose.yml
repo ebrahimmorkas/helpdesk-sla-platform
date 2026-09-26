@@ -1,0 +1,81 @@
+x-app: &app
+  build:
+    context: .
+    target: development
+    args:
+      UID: ${UID:-1000}
+      GID: ${GID:-1000}
+  image: helpdesk-sla-platform:dev
+  volumes:
+    - .:/var/www/html
+    - vendor:/var/www/html/vendor
+  depends_on:
+    mysql:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
+services:
+  app:
+    <<: *app
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "${APP_PORT:-8081}:80"
+    volumes:
+      - ./public:/var/www/html/public:ro
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
+
+  queue:
+    <<: *app
+    command: php artisan queue:work redis --queue=default,reports --tries=3 --backoff=10 --max-time=3600
+    restart: unless-stopped
+
+  # Drains jobs that were written to the database queue while Redis was unavailable.
+  queue-fallback:
+    <<: *app
+    command: php artisan queue:work database --queue=default,reports --tries=3 --backoff=10 --sleep=10 --max-time=3600
+    restart: unless-stopped
+
+  scheduler:
+    <<: *app
+    command: php artisan schedule:work
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-helpdesk}
+      MYSQL_USER: ${DB_USERNAME:-laravel}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root-secret}
+    ports:
+      - "${FORWARD_DB_PORT:-33062}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./docker/mysql/create-testing-database.sql:/docker-entrypoint-initdb.d/10-create-testing-database.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-p${DB_ROOT_PASSWORD:-root-secret}"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  vendor:
+  mysql-data:
+  redis-data:
