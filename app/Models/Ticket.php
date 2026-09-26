@@ -15,12 +15,17 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable([
     'organization_id', 'number', 'requester_id', 'assignee_id', 'subject', 'description', 'status', 'priority',
-    'first_response_due_at', 'resolution_due_at', 'first_responded_at', 'sla_paused_at', 'resolved_at', 'closed_at',
+    'first_response_due_at', 'resolution_due_at', 'first_responded_at', 'sla_paused_at', 'sla_paused_minutes',
+    'resolved_at', 'closed_at',
 ])]
 class Ticket extends Model
 {
     /** @use HasFactory<TicketFactory> */
     use BelongsToOrganization, HasFactory;
+
+    protected $attributes = [
+        'sla_paused_minutes' => 0,
+    ];
 
     /** Tickets are addressed by their per-organization number, e.g. /tickets/1042. */
     public function getRouteKeyName(): string
@@ -38,6 +43,7 @@ class Ticket extends Model
             'resolution_due_at' => 'datetime',
             'first_responded_at' => 'datetime',
             'sla_paused_at' => 'datetime',
+            'sla_paused_minutes' => 'integer',
             'resolved_at' => 'datetime',
             'closed_at' => 'datetime',
         ];

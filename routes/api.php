@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\InvitationController;
+use App\Http\Controllers\Api\V1\SlaSettingsController;
 use App\Http\Controllers\Api\V1\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -23,5 +24,10 @@ Route::prefix('v1')->name('v1.')->group(function () {
         Route::get('invitations', [InvitationController::class, 'index'])->name('invitations.index');
         Route::post('invitations', [InvitationController::class, 'store'])->name('invitations.store');
         Route::delete('invitations/{invitation}', [InvitationController::class, 'destroy'])->name('invitations.destroy');
+
+        Route::get('sla-policies', [SlaSettingsController::class, 'policies'])->name('sla-policies.index');
+        Route::put('sla-policies/{priority}', [SlaSettingsController::class, 'updatePolicy'])->name('sla-policies.update');
+        Route::get('business-hours', [SlaSettingsController::class, 'businessHours'])->name('business-hours.show');
+        Route::put('business-hours', [SlaSettingsController::class, 'updateBusinessHours'])->name('business-hours.update');
     });
 });
